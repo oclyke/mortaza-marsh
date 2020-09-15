@@ -8,13 +8,14 @@ const nivodata = require('./nivodata.js');
 
 const service_uuid_led = '19b10000-e8f2-537e-4f6c-d104768a1214';
 const service_uuid_acc = '19b10100-e8f2-537e-4f6c-d104768a1214';
-const service_uuid_mic = '19b10200-e8f2-537e-4f6c-d104768a1214';
-const service_uuid_cam = '19b10300-e8f2-537e-4f6c-d104768a1214';
+const service_uuid_update = '19b10400-e8f2-537e-4f6c-d104768a1214';
 
 const char_uuid_switch = '19b10001-e8f2-537e-4f6c-d104768a1214';
-const char_uuid_acc_mag = '19b10101-e8f2-537e-4f6c-d104768a1214';
-const char_uuid_mic_freq = '19b10201-e8f2-537e-4f6c-d104768a1214';
-const char_uuid_cam_ae = '19b10301-e8f2-537e-4f6c-d104768a1214';
+const char_uuid_acc_x = '19b10101-e8f2-537e-4f6c-d104768a1214';
+const char_uuid_acc_y = '19b10102-e8f2-537e-4f6c-d104768a1214';
+const char_uuid_acc_z = '19b10103-e8f2-537e-4f6c-d104768a1214';
+const char_uuid_acc_t = '19b10104-e8f2-537e-4f6c-d104768a1214';
+const char_uuid_update_period = '19b10401-e8f2-537e-4f6c-d104768a1214';
 
 const dec = new TextDecoder('utf-8');
 const enc = new TextEncoder('utf-8');
@@ -50,8 +51,7 @@ const Bluetooth = (props) => {
       optionalServices: [                   // list any other uuids that you want to have permission to access here
         service_uuid_led,
         service_uuid_acc,
-        service_uuid_mic,
-        service_uuid_cam,
+        service_uuid_update,
       ]
     })
     .then(device => {
@@ -239,11 +239,12 @@ const MyResponsiveLine = ({ data /* see data tab */ }) => (
 function App() {
 
   const now = new Date();
-  const initialData = [
-    {id: 'acc', color: 'hsl(325, 70%, 50%)', data: []},
-    {id: 'mic', color: 'hsl(13, 70%, 50%)', data: []},
-    {id: 'cam', color: 'hsl(155, 70%, 50%)', data: []},
-    {id: 'led', color: 'hsl(227, 70%, 50%)', data: []},
+  const initialData = [ // these are in this order for the best color scheme! (x, y, z axes are well-contrasted)
+    {id: 'led', data: []},
+    {id: 'accx', data: []},
+    {id: 'acct', data: []},
+    {id: 'accy', data: []},
+    {id: 'accz', data: []},
   ];
 
   const [start, setStart] = useState(now.getTime());
@@ -254,7 +255,7 @@ function App() {
   const dataRef = useRef(data);
   dataRef.current = data;
 
-  const [history, setHistory] = useState(360000);
+  const [history, setHistory] = useState(10000); // ms of plot history
   const historyRef = useRef(history);
   historyRef.current = history;
 
@@ -300,26 +301,33 @@ function App() {
             setData(initialData);
 
             // add listeners and notifications for notable properties (such as ones that are changed by the device)
-            dev.characteristics[char_uuid_acc_mag].addEventListener('characteristicvaluechanged', (e) => {
-              const mag = e.target.value.getUint8(0);
-              enterData('acc', mag);
-              // console.log('acc magnitude changed to: ', mag);
+            dev.characteristics[char_uuid_acc_x].addEventListener('characteristicvaluechanged', (e) => {
+              const x = e.target.value.getInt8(0);
+              enterData('accx', x);
+              // console.log('acc x changed to: ', x);
             });
-            dev.characteristics[char_uuid_acc_mag].startNotifications().then((e) => { console.log('started acc magnitude notifications'); }).catch((e) => { console.warn(e); });
+            dev.characteristics[char_uuid_acc_x].startNotifications().then((e) => { console.log('started acc x notifications'); }).catch((e) => { console.warn(e); });
 
-            dev.characteristics[char_uuid_mic_freq].addEventListener('characteristicvaluechanged', (e) => {
-              const freq = e.target.value.getUint8(0);
-              enterData('mic', freq);
-              // console.log('mic frequency changed to: ', freq);
+            dev.characteristics[char_uuid_acc_y].addEventListener('characteristicvaluechanged', (e) => {
+              const y = e.target.value.getInt8(0);
+              enterData('accy', y);
+              // console.log('acc y changed to: ', y);
             });
-            dev.characteristics[char_uuid_mic_freq].startNotifications().then((e) => { console.log('started mic frequency notifications'); }).catch((e) => { console.warn(e); });
+            dev.characteristics[char_uuid_acc_y].startNotifications().then((e) => { console.log('started acc y notifications'); }).catch((e) => { console.warn(e); });
 
-            dev.characteristics[char_uuid_cam_ae].addEventListener('characteristicvaluechanged', (e) => {
-              const autoexposure = e.target.value.getUint8(0);
-              enterData('cam', autoexposure);
-              // console.log('camera autoexposure changed to: ', autoexposure);
+            dev.characteristics[char_uuid_acc_z].addEventListener('characteristicvaluechanged', (e) => {
+              const z = e.target.value.getInt8(0);
+              enterData('accz', z);
+              // console.log('acc z changed to: ', z);
             });
-            dev.characteristics[char_uuid_cam_ae].startNotifications().then((e) => { console.log('started camera autoexposure notifications'); }).catch((e) => { console.warn(e); });
+            dev.characteristics[char_uuid_acc_z].startNotifications().then((e) => { console.log('started acc z notifications'); }).catch((e) => { console.warn(e); });
+
+            dev.characteristics[char_uuid_acc_t].addEventListener('characteristicvaluechanged', (e) => {
+              const t = e.target.value.getUint8(0);
+              enterData('acct', t);
+              // console.log('acc t changed to: ', t);
+            });
+            dev.characteristics[char_uuid_acc_t].startNotifications().then((e) => { console.log('started acc t notifications'); }).catch((e) => { console.warn(e); });
 
             // read the state of the led 
             const ledstate = (false) ? 1 : 0;
